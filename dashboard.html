@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Licence Records Dashboard</title>
+  <style>
+    /* ---- Core Vars ---- */
+    :root {
+      --gov-blue: #1d70b8;
+      --gov-dark: #0b0c0c;
+      --gov-light: #f3f2f1;
+      --gov-yellow: #ffdd00;
+      --gov-gray: #5a636e;
+      --gov-red: #d4351c;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "GDS Transport", Arial, sans-serif;
+      background: var(--gov-light);
+      color: var(--gov-dark);
+      line-height: 1.5;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* ---- Auth Screen ---- */
+    #auth-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: var(--gov-blue); }
+    #auth-card { background: #fff; border-radius: 4px; padding: 35px 30px; width: 100%; max-width: 420px; box-shadow: 0 2px 4px rgba(0,0,0,.1); text-align: center; }
+    .lock-icon { text-align: center; font-size: 48px; color: var(--gov-blue); margin-bottom: 16px; }
+    #auth-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #fff; }
+    #auth-card .subtitle { font-size: 14px; color: rgba(255,255,255,.7); margin-bottom: 24px; }
+    #password-input { width: 100%; padding: 12px 14px; border: 2px solid var(--gov-gray); border-radius: 3px; font-size: 16px; font-family: inherit; outline: none; transition: border-color .2s; }
+    #password-input:focus { border-color: var(--gov-blue); }
+    #submit-btn { width: 100%; padding: 12px; background: var(--gov-blue); color: #fff; border: none; border-radius: 3px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: 16px; transition: background .2s; }
+    #submit-btn:hover { background: #145a93; }
+    .error-msg { color: var(--gov-red); font-size: 14px; margin-top: 10px; display: none; }
+    .error-msg.visible { display: block; }
+
+    /* ---- Main Dashboard ---- */
+    #main-dash { display: none; }
+    header { background: var(--gov-dark); color: #fff; padding: 12px 30px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 22px; font-weight: 700; }
+    header .badge { background: var(--gov-blue); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 3px; font-weight: 400; letter-spacing: .5px; }
+    nav { background: var(--gov-dark); padding: 10px 30px; display: flex; gap: 6px; }
+    nav a { color: #fff; text-decoration: none; padding: 6px 16px; border-radius: 2px; font-size: 14px; font-weight: 500; display: inline-block; }
+    nav a.active { background: var(--gov-blue); }
+
+    main { padding: 24px 30px; max-width: 1200px; margin: 0 auto; }
+
+    /* ---- Toolbar ---- */
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .toolbar h2 { font-size: 18px; font-weight: 700; }
+    .toolbar .stats { display: flex; gap: 20px; }
+    .stat-box { background: #fff; border: 1px solid var(--gov-gray); border-radius: 3px; padding: 10px 18px; text-align: center; }
+    .stat-value { font-size: 24px; font-weight: 700; color: var(--gov-blue); }
+    .stat-label { font-size: 12px; color: var(--gov-gray); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+
+    /* ---- Forms ---- */
+    .form-card { background: #fff; border: 1px solid var(--gov-gray); border-radius: 3px; padding: 24px; margin-bottom: 24px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-row { display: flex; flex-direction: column; gap: 6px; }
+    .form-row.full { grid-column: 1 / -1; }
+    label { font-size: 13px; font-weight: 700; color: var(--gov-dark); text-transform: uppercase; letter-spacing: .4px; }
+    label .hint { font-size: 12px; color: var(--gov-gray); font-weight: 400; }
+    input, select, textarea {
+      width: 100%; padding: 9px 10px; border: 2px solid var(--gov-gray); border-radius: 3px;
+      font-size: 14px; font-family: inherit; outline: none; transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--gov-blue); }
+    textarea { resize: vertical; min-height: 50px; }
+
+/* ---- Address autocomplete ---- */
+.address-wrapper { position: relative; }
+.address-wrapper input#address { position: relative; z-index: 2; }
+.address-dropdown { position: absolute; top: 100%; left: 0; right: 0; border: 2px solid var(--gov-gray); border-top: none; border-radius: 0 0 3px 3px; background: #fff; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,.15); display: none; }
+.address-dropdown .addr-item { padding: 9px 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.address-dropdown .addr-item:hover { background: #e8f0fe; }
+.address-dropdown .addr-item.selected { background: #cce5ff; }
+.address-no-results { padding: 9px 12px; font-size: 14px; color: var(--gov-gray); border-bottom: 1px solid #eee; }
+.address-wrapper input:focus ~ .address-dropdown { display: block; }
+    button.primary { background: var(--gov-blue); color: #fff; border: none; border-radius: 3px; padding: 10px 28px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background .2s; }
+    button.primary:hover { background: #145a93; }
+    button.secondary { background: var(--gov-gray); color: #fff; border: none; border-radius: 3px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; transition: background .2s; }
+    button.secondary:hover { background: #666; }
+
+    /* ---- Table ---- */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 3px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+    th { background: var(--gov-blue); color: #fff; font-size: 13px; font-weight: 700; text-align: left; padding: 12px 14px; white-space: nowrap; }
+    td { padding: 11px 14px; font-size: 14px; border-bottom: 1px solid #e5e5e5; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f8f8; }
+    tr.highlight td { background: #fffbe6; }
+    tr.highlight:hover td { background: #fff6cc; }
+    .actions { display: flex; gap: 6px; }
+    .link-btn { background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 700; padding: 2px 6px; text-decoration: underline; }
+    .link-btn.danger { color: var(--gov-red); }
+    .link-btn.success { color: var(--gov-blue); }
+
+    /* ---- Modal ---- */
+    #modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.5); z-index: 1000; justify-content: center; align-items: center; }
+    #modal-overlay.active { display: flex; }
+    .modal { background: #fff; border-radius: 5px; padding: 28px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+    .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 18px; color: var(--gov-blue); }
+    .modal-close { float: right; cursor: pointer; background: none; border: none; font-size: 24px; color: var(--gov-gray); line-height: 1; }
+    .modal textarea { min-height: 120px; font-family: monospace; font-size: 14px; margin-bottom: 14px; }
+    .modal .confirm-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .modal .confirm-row button { padding: 8px 20px; border-radius: 3px; cursor: pointer; font-weight: 700; font-family: inherit; }
+    .modal .btn-cancel { background: var(--gov-gray); color: var(--gov-dark); }
+    .modal .btn-confirm { background: var(--gov-blue); color: #fff; }
+
+    .empty-state { text-align: center; padding: 50px 20px; color: var(--gov-gray); }
+    .empty-state .big { font-size: 48px; margin-bottom: 12px; }
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ===================== AUTH SCREEN ===================== -->
+<div id="auth-screen">
+  <div id="auth-card">
+    <div class="lock-icon">🔒</div>
+    <h1>Dashboard Access</h1>
+    <p class="subtitle">Enter your credentials to manage licence records</p>
+    <input type="password" id="auth-password" placeholder="Password" autocomplete="off">
+    <div class="error-msg" id="auth-error">Incorrect password. Please try again.</div>
+    <button class="primary" onclick="checkAuth()">Unlock</button>
+  </div>
+</div>
+
+<!-- ===================== MAIN DASHBOARD ===================== -->
+<div id="main-dash">
+
+  <header>
+    <h1>Licence Records Dashboard</h1>
+    <div id="user-name" style="display:none;"></div>
+    <span class="badge">Manual Entry System</span>
+  </header>
+
+  <nav>
+    <a href="#" class="active" onclick="showSection('records'); return false;">Records</a>
+    <a href="#" onclick="showSection('add'); document.getElementById('add-form').scrollIntoView(); return false;">Add Record</a>
+    <a href="#" onclick="changePassword(); return false;">Change Password</a>
+  </nav>
+
+  <main>
+    <!-- ===================== ADD FORM ===================== -->
+    <section id="add-section">
+      <div class="form-card">
+        <h2 style="margin-bottom:20px;font-size:18px;">Add New Licence Record</h2>
+        <form id="add-user-form" novalidate>
+          <div class="form-grid">
+            <div class="form-row full">
+              <label for="fullName">Driver's full name</label>
+              <input type="text" id="fullName" placeholder="e.g. MRS SARAH MEREDYTH SMITH" required>
+            </div>
+            <div class="form-row">
+              <label for="sex">Sex</label>
+              <select id="sex" required>
+                <option value="">Select sex</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="dateOfBirth">Date of birth</label>
+              <input type="date" id="dateOfBirth" required>
+            </div>
+            <div class="form-row full">
+              <label for="address">Address</label>
+              <div class="address-wrapper">
+                <input type="text" id="address" list="uk-addresses" placeholder="Type address or postcode e.g. SO14 3JT" autocomplete="off" required>
+                <div class="address-dropdown" id="address-dropdown"></div>
+                <datalist id="uk-addresses">
+                  <option value="24 Redcliffe Meadow, Redcliffe Gardens, Clifton, Bristol, BS1 1AA">
+                  <option value="10 Downing Street, Westminster, London, SW1A 2AA">
+                  <option value="221B Baker Street, Marylebone, London, NW1 6XE">
+                  <option value="1 London Eye Avenue, South Bank, London, SE1 7PB">
+                  <option value="Castle View, Cardiff Bay, Cardiff, CF10 4AU">
+                  <option value="1 Queen's Road, Belfast, BT1 2JA">
+                  <option value="34 St. Andrew's Crescent, Edinburgh, EH2 2BB">
+                  <option value="Grosvenor House, Sandyford, Dublin 2, D02 F503">
+                  <option value="31 Mitchell Street, Belfast, BT1 2BJ">
+                  <option value="15 Great George Street, Liverpool, L3 5BF">
+                  <option value="Flat 7, St. Bernard House, Bernard Street, Southampton, SO14 3JT">
+                  <option value="45 High Street, Kingston upon Hull, HU1 1AA">
+                  <option value="22 Baker Street, London, W1U 6EP">
+                  <option>12 Rose Road, London, N12 9AB">
+                  <option>Flat 3, 42 Town Street, Birmingham, B1 1HH">
+                  <option>8 Station Road, Manchester, M1 2AB">
+                  <option>27 College Street, Leeds, LS1 4HH">
+                  <option>5 George Street, Glasgow, G2 1DU">
+                  <option>19 Regent Street, Bristol, BS1 4LK">
+                  <option>63 Kings Road, Brighton, BN1 2RU">
+                  <option>91 Park Lane, Nottingham, NG7 6AB">
+                  <option>3 Harbour View, Cardiff, CF10 5AB">
+                  <option>47 Queen Street, Edinburgh, EH2 2BX">
+                  <option>12 Bridge Street, Belfast, BT1 2AA">
+                  <option>Flat 2B, 77 Commercial Road, London, E1 6QL">
+                  <option>5 Alexandra Road, Leeds, LS2 7JW">
+                  <option>8 Prospect Street, Liverpool, L1 6DW">
+                  <option>39 Castle Road, Newcastle, NE1 3NN">
+                  <option>72 Limehouse, London, E1 3AB">
+                  <option>Flat 5, 100 Church Street, Sheffield, S1 2BJ">
+                </datalist>
+              </div>
+            </div>
+            <div class="form-row">
+              <label for="drivingLicenceNumber">Driving licence number</label>
+              <input type="text" id="drivingLicenceNumber" placeholder="e.g. MORGA657054SM9IJ" maxlength="16" style="text-transform:uppercase;" required>
+            </div>
+            <div class="form-row">
+              <label for="licenceStatus">Licence status</label>
+              <select id="licenceStatus" required>
+                <option value="">Select status</option>
+                <option value="You have a full driving licence">Full driving licence</option>
+                <option value="You have a provisional driving licence">Provisional driving licence</option>
+                <option value="You do not hold a driving licence">Do not hold a driving licence</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="licenceValidFrom">Valid from</label>
+              <input type="date" id="licenceValidFrom" required>
+            </div>
+            <div class="form-row">
+              <label for="licenceValidTo">Valid to</label>
+              <input type="date" id="licenceValidTo" required>
+            </div>
+            <div class="form-row">
+              <label for="licenceIssueNumber">Issue number</label>
+              <input type="text" id="licenceIssueNumber" placeholder="e.g. 50">
+            </div>
+          </div>
+          <div style="margin-top:20px;">
+            <button class="primary" type="submit">Save Record</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================== RECORDS TABLE ===================== -->
+    <section id="records-section">
+      <div class="toolbar">
+        <h2>Stored Records</h2>
+        <div class="stats">
+          <div class="stat-box">
+            <div class="stat-value" id="total-count">0</div>
+            <div class="stat-label">Total records</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="matchable-count">0</div>
+            <div class="stat-label">Matchable licences</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="records-container">
+        <!-- table rendered by JS -->
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== EXPORT MODAL ===================== -->
+<div id="export-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h3>Export All Data</h3>
+    <textarea id="export-data" readonly></textarea>
+    <div class="confirm-row">
+      <button class="btn-cancel" onclick="closeModal()">Close</button>
+      <button class="btn-confirm" onclick="copyExportData()">Copy & Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ===== CONFIG ===== */
+  var STORAGE_KEY = 'gov_driving_licence_dashboard';
+  var USERS_KEY = 'gov_driving_users';      // who can add records
+  var DEFAULT_ADMIN_PW = 'licence2026';     // <-- change this or set on first run
+  var authName = localStorage.getItem('gov_dash_name') || 'Admin';
+
+  /* ===== AUTH ===== */
+  function checkAuth() {
+    var pwd = document.getElementById('auth-password').value;
+    var storedPW = localStorage.getItem('gov_dash_pw');
+    // First run: set the password and name
+    if (!storedPW) {
+      if (confirm('First time setup.\n\nSet your dashboard password:')) {
+        var newPW = prompt('Enter your password:', DEFAULT_ADMIN_PW);
+        if (newPW && newPW.trim()) {
+          localStorage.setItem('gov_dash_pw', newPW.trim());
+          localStorage.setItem('gov_dash_name', prompt('Enter your name for the dashboard:', authName) || authName);
+          authName = localStorage.getItem('gov_dash_name');
+          localStorage.setItem('gov_dash_authed', 'true');
+          document.getElementById('user-name').textContent = 'Logged in as: ' + authName;
+          document.getElementById('user-name').style.display = 'block';
+          document.getElementById('auth-screen').style.display = 'none';
+          document.getElementById('main-dash').style.display = 'block';
+          renderRecords();
+        }
+      }
+      return;
+    }
+    if (pwd === storedPW) {
+      localStorage.setItem('gov_dash_authed', 'true');
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('main-dash').style.display = 'block';
+      document.getElementById('user-name').textContent = 'Logged in as: ' + authName;
+      document.getElementById('user-name').style.display = 'block';
+      renderRecords();
+    } else {
+      document.getElementById('auth-error').classList.add('visible');
+    }
+  }
+  document.getElementById('auth-password').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') checkAuth();
+  });
+
+  /* ===== DATA STORAGE ===== */
+  function loadData() {
+    var stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try { return JSON.parse(stored); } catch(e) {}
+    }
+    return { users: [], lastUpdated: '' };
+  }
+
+  function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function getUsers() { return loadData().users; }
+
+  /* ===== RENDER TABLE ===== */
+  function renderRecords() {
+    var data = loadData();
+    var container = document.getElementById('records-container');
+    var users = data.users || [];
+
+    // Stats
+    document.getElementById('total-count').textContent = users.length;
+    var matchable = 0;
+    users.forEach(function(u) { if (u.drivingLicenceNumber) matchable++; });
+    document.getElementById('matchable-count').textContent = matchable;
+
+    if (users.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="big">&#128203;</div><p>No records yet. Click "Add Record" to add licence details.</p></div>';
+      return;
+    }
+
+    var html = '<table>\n';
+    html += '<thead><tr>';
+    html += '<th>Full Name</th><th>Sex</th><th>DOB</th><th>Address</th>';
+    html += '<th>Licence No.</th><th>Status</th><th>Valid From</th><th>Valid To</th><th>Issue No.</th>';
+    html += '<th style="width:100px;">Actions</th>';
+    html += '</tr></thead>\n<tbody>';
+
+    users.forEach(function(u, idx) {
+      var hl = u.drivingLicenceNumber ? ' highlight' : '';
+      html += '<tr class="' + hl.trim() + '">';
+      html += '<td>' + escapeHTML(u.fullName || '') + '</td>';
+      html += '<td>' + escapeHTML(u.sex || '') + '</td>';
+      html += '<td>' + escapeHTML(u.dateOfBirth || '') + '</td>';
+      html += '<td>' + escapeHTML(u.address || '') + '</td>';
+      html += '<td style="font-family:monospace; font-weight:700;">' + escapeHTML(u.drivingLicenceNumber || '') + '</td>';
+      html += '<td>' + escapeHTML(u.licenceStatus || '') + '</td>';
+      html += '<td>' + escapeHTML(u.licenceValidFrom || '') + '</td>';
+      html += '<td>' + escapeHTML(u.licenceValidTo || '') + '</td>';
+      html += '<td>' + escapeHTML(u.licenceIssueNumber || '') + '</td>';
+      html += '<td><div class="actions">';
+      html += '<a class="link-btn success" onclick="editRecord(' + idx + ')">Edit</a>';
+      html += '<a class="link-btn danger" onclick="deleteRecord(' + idx + ')">Delete</a>';
+      html += '</div></td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  /* ===== UK ADDRESS DATABASE ===== */
+  var UK_ADDRESSES = [
+    "Flat 7, St. Bernard House, Bernard Street, Southampton, SO14 3JT",
+    "Flat 3, St. Bernard House, Bernard Street, Southampton, SO14 3JT",
+    "Flat 1A, St. Bernard House, Bernard Street, Southampton, SO14 3JT",
+    "24 Redcliffe Meadow, Redcliffe Gardens, Clifton, Bristol, BS1 1AA",
+    "10 Downing Street, Westminster, London, SW1A 2AA",
+    "221B Baker Street, Marylebone, London, NW1 6XE",
+    "1 London Eye Avenue, South Bank, London, SE1 7PB",
+    "Castle View, Cardiff Bay, Cardiff, CF10 4AU",
+    "1 Queen's Road, Belfast, BT1 2JA",
+    "34 St. Andrew's Crescent, Edinburgh, EH2 2BB",
+    "Grosvenor House, Sandyford, Dublin 2, D02 F503",
+    "31 Mitchell Street, Belfast, BT1 2BJ",
+    "15 Great George Street, Liverpool, L3 5BF",
+    "45 High Street, Kingston upon Hull, HU1 1AA",
+    "22 Baker Street, London, W1U 6EP",
+    "12 Rose Road, London, N12 9AB",
+    "Flat 3, 42 Town Street, Birmingham, B1 1HH",
+    "8 Station Road, Manchester, M1 2AB",
+    "27 College Street, Leeds, LS1 4HH",
+    "5 George Street, Glasgow, G2 1DU",
+    "19 Regent Street, Bristol, BS1 4LK",
+    "63 Kings Road, Brighton, BN1 2RU",
+    "91 Park Lane, Nottingham, NG7 6AB",
+    "3 Harbour View, Cardiff, CF10 5AB",
+    "47 Queen Street, Edinburgh, EH2 2BX",
+    "12 Bridge Street, Belfast, BT1 2AA",
+    "Flat 2B, 77 Commercial Road, London, E1 6QL",
+    "5 Alexandra Road, Leeds, LS2 7JW",
+    "8 Prospect Street, Liverpool, L1 6DW",
+    "39 Castle Road, Newcastle, NE1 3NN",
+    "72 Limehouse, London, E1 3AB",
+    "Flat 5, 100 Church Street, Sheffield, S1 2BJ",
+    "14 Market Street, York, YO1 8AN",
+    "29 Fore Street, Exeter, EX4 3LJ",
+    "6 High Street, Oxford, OX1 2DN",
+    "48 Northgate, Canterbury, CT1 1BF",
+    "11 Market Square, Cambridge, CB2 3TZ",
+    "3 The Quay, Southampton, SO14 2TU",
+    "15 Westgate Road, Southampton, SO14 1HL",
+    "2 Castle Street, Southampton, SO14 2HF",
+    "4 Oxford Street, Southampton, SO14 1DX",
+    "7 Below Bar Street, Southampton, SO14 1EY",
+    "37 Above Bar Street, Southampton, SO14 1NW",
+    "18 High Street, Southampton, SO14 2NZ",
+    "56 Stanley Street, Southampton, SO15 2DX",
+    "22 Park Terrace, Southampton, SO14 0FS",
+    "4 Bellevue Road, Southampton, SO14 1AA",
+    "19 Portswood Road, Southampton, SO17 2NF",
+    "6 Banister Road, Southampton, SO15 2NY",
+    "1 Bevois Street, Southampton, SO14 0JS",
+    "3 New Road, Southampton, SO14 1LR",
+    "14 Northern Road, Southampton, SO14 6PL",
+    "2 St. Mary Street, Southampton, SO14 1NY",
+    "7 West Quay Road, Southampton, SO15 1HG",
+    "12 Avenue Road, Southampton, SO17 1LJ",
+    "5 Onslow Road, Southampton, SO15 5LQ",
+    "11 Archery Road, Southampton, SO15 5LX",
+    "3 Cardinal Place, Southampton, SO14 1EX",
+    "9 Avenue Road, Southampton, SO17 1NN",
+    "16 Cranbury Avenue, Southampton, SO14 7LY",
+    "8 Burgess Road, Southampton, SO16 3BF",
+    "4 St. Denys Road, Southampton, SO17 2PY",
+    "2 Priory Road, Southampton, SO14 5HA",
+    "64 Windsor Terrace, Southampton, SO17 2FN",
+    "35 Bassett Avenue, Southampton, SO16 7NQ",
+    "10 Portswood Road, Southampton, SO17 2NH",
+    "27 Banister Road, Southampton, SO15 2NY",
+    "13 Highfield Lane, Southampton, SO17 1BJ",
+    "19 Burgess Road, Southampton, SO16 3BJ",
+    "1 Wessex Lane, Southampton, SO16 3GA",
+    "3 The Avenue, Southampton, SO17 1BJ",
+    "5 University Road, Southampton, SO17 1BJ",
+    "7 Highfield Lane, Southampton, SO17 1DL",
+    "9 The Avenue, Southampton, SO17 1BJ",
+    "11 Highfield Crescent, Southampton, SO17 1LY",
+    "15 The Avenue, Southampton, SO17 1BE",
+    "17 Highfield Road, Southampton, SO17 1NS",
+    "21 Hill Lane, Southampton, SO16 2HA",
+    "23 Bassett Wood Road, Southampton, SO16 7BP",
+    "25 Dorset Road, Southampton, SO17 2TW",
+    "29 Grantham Road, Southampton, SO17 1TD",
+    "31 Rownhams Road, Southampton, SO16 8BY",
+    "33 Portsmouth Road, Southampton, SO14 6NJ",
+    "37 Millbrook Road, Southampton, SO16 4JR",
+    "41 West End Road, Southampton, SO18 3TG",
+    "43 Bursledon Road, Southampton, SO19 8NS",
+    "45 Romsey Road, Southampton, SO16 5AA",
+    "47 Winchester Road, Southampton, SO17 1BJ",
+    "51 Airport Service Road, Southampton, SO16 9JA",
+    "53 Coxford Road, Southampton, SO16 5JA",
+    "55 Burgess Way, Southampton, SO16 3ND",
+    "57 Shirley Road, Southampton, SO15 3NH",
+    "59 Burgess Way, Southampton, SO16 3ND",
+    "61 St. James Road, Southampton, SO15 5HL",
+    "65 St. Mary Street, Southampton, SO14 1NY",
+    "67 Westridge Road, Southampton, SO16 4RJ",
+    "69 Oakley Road, Southampton, SO16 4LY",
+    "71 Avenue Road, Southampton, SO17 1LN",
+    "73 Burgess Road, Southampton, SO16 3BF",
+    "75 St. Denys Road, Southampton, SO17 2PY",
+    "77 Portswood Road, Southampton, SO17 2NF",
+    "79 St. Denys Road, Southampton, SO17 2PY",
+    "81 Burgess Road, Southampton, SO16 3BF",
+    "83 Portswood Road, Southampton, SO17 2NF",
+    "85 Priory Road, Southampton, SO14 5HA",
+    "87 St. Denys Road, Southampton, SO17 2PY",
+    "89 Burgess Road, Southampton, SO16 3BF",
+    "91 Portswood Road, Southampton, SO17 2NF",
+    "1 Market Street, London, SW1Y 4BQ",
+    "2 Bond Street, London, W1S 1PF",
+    "3 Regent Street, London, SW1Y 4LR",
+    "4 Oxford Street, London, W1C 1BJ",
+    "5 Piccadilly, London, W1J 0DS",
+    "6 The Strand, London, WC2R 0LS",
+    "7 Fleet Street, London, EC4A 2BW",
+    "8 High Holborn, London, WC1V 6QS",
+    "9 Clerkenwell Road, London, EC1R 5AB",
+    "10 King's Cross Road, London, WC1X 9LA",
+    "11 Euston Road, London, NW1 2AD",
+    "12 Camden High Street, London, NW1 7JH",
+    "13 Baker Street, London, W1U 8DJ",
+    "14 Marylebone Road, London, NW1 5PU",
+    "15 Paddington Street, London, W1U 5BB",
+    "16 Queensway, London, W2 3TY",
+    "17 Bayswater Road, London, W2 3PH",
+    "18 Notting Hill Gate, London, W11 3JQ",
+    "19 Holland Park Avenue, London, W11 4SA",
+    "20 Kensington High Street, London, W8 5NP",
+    "21 Earl's Court Road, London, SW5 9AE",
+    "22 South Kensington Street, London, SW7 2LR",
+    "23 Brompton Road, London, SW3 1EP",
+    "24 Sloane Street, London, SW1X 9BA",
+    "25 Knightsbridge, London, SW1X 7LP",
+    "26 Victoria Street, London, SW1E 5QP",
+    "27 Westminster Bridge Road, London, SE1 7RJ",
+    "28 Waterloo Road, London, SE1 8UG",
+    "29 Southwark Street, London, SE1 0RU",
+    "30 Borough High Street, London, SE1 1HR",
+    "31 London Bridge Street, London, SE1 9SG",
+    "32 Queen Victoria Street, London, EC4V 4BQ",
+    "33 Threadneedle Street, London, EC2R 8AH",
+    "34 Cornhill, London, EC3V 3ND",
+    "35 Gracechurch Street, London, EC3V 0DR",
+    "36 Fenchurch Street, London, EC3M 4BA",
+    "37 Leadenhall Street, London, EC3A 2AB",
+    "38 Aldgate High Street, London, EC3N 1AH",
+    "39 Whitechapel Road, London, E1 1DU",
+    "40 Commercial Road, London, E1 1LA",
+    "41 Mile End Road, London, E1 4UN",
+    "42 Bow Road, London, E3 2AA",
+    "43 Stratford High Street, London, E15 1RB",
+    "44 Romford Road, London, E15 4LD",
+    "45 Barking Road, London, E6 2EL",
+    "46 Green Street, London, E7 8JH",
+    "47 High Road Leytonstone, London, E11 1HH",
+    "48 Forest Road, London, E17 3PF",
+    "49 Hoxton Street, London, N1 6NG",
+    "50 Kingsland High Street, London, E8 2JS",
+    "51 Dalston Lane, London, E8 1DF",
+    "52 Stoke Newington Church Street, London, N16 0UA",
+    "53 Seven Sisters Road, London, N7 6QJ",
+    "54 Holloway Road, London, N7 8JZ",
+    "55 Essex Road, London, N1 8LH",
+    "56 Upper Street, London, N1 0NP",
+    "57 City Road, London, EC1V 1NU",
+    "58 Old Street, London, EC1V 9HB",
+    "59 Goswell Road, London, EC1V 7EB",
+    "60 Farringdon Road, London, EC1R 3DN",
+    "61 Clerkenwell Green, London, EC1R 0DP",
+    "62 Exmouth Market, London, EC1R 4QE",
+    "63 Rosebery Avenue, London, EC1R 4RP",
+    "64 King's Cross Road, London, WC1X 9LA",
+    "65 Gray's Inn Road, London, WC1X 8TS",
+    "66 High Holborn, London, WC1V 6QS",
+    "67 Kingsway, London, WC2B 6AF",
+    "68 Aldwych, London, WC2B 4BG",
+    "69 The Strand, London, WC2R 0LS",
+    "70 Fleet Street, London, EC4A 2BW",
+    "71 Ludgate Hill, London, EC4M 7DE",
+    "72 St. Paul's Churchyard, London, EC4M 8AD",
+    "73 Cannon Street, London, EC4M 5EA",
+    "74 Queen Victoria Street, London, EC4V 4BQ",
+    "75 Blackfriars Road, London, SE1 0JY",
+    "76 Southwark Bridge Road, London, SE1 0HA",
+    "77 Borough Road, London, SE1 0AA",
+    "78 London Road, London, SE1 6NA",
+    "79 Blackfriars Bridge Road, London, SE1 8JP",
+    "80 Stamford Street, London, SE1 9LY",
+    "81 Waterloo Road, London, SE1 8UG",
+    "82 York Road, London, SE1 7NJ",
+    "83 Westminster Bridge Road, London, SE1 7RJ",
+    "84 Lambeth Road, London, SE1 7PP",
+    "85 Kennington Road, London, SE11 6QH",
+    "86 Vauxhall Bridge Road, London, SW1V 2PU",
+    "87 Victoria Street, London, SW1E 5QP",
+    "88 Buckingham Palace Road, London, SW1W 0SA",
+    "89 Lower Belgrave Street, London, SW1W 0LR",
+    "90 Ebury Street, London, SW1W 8QT",
+    "91 Pimlico Road, London, SW1W 8NA",
+    "92 Chester Street, London, SW1X 7BE",
+    "93 Motcomb Street, London, SW1X 8LB",
+    "94 Pont Street, London, SW1X 9AA",
+    "95 Sloane Square, London, SW1W 8QT",
+    "96 Sloane Street, London, SW1X 9BA",
+    "97 Basil Street, London, SW3 1AT",
+    "98 Sloane Avenue, London, SW3 3BT",
+    "99 Sloane Gardens, London, SW1W 8QT",
+    "100 Cadogan Square, London, SW1X 9JP"
+  ];
+
+  /* ===== ADDRESS AUTOCOMPLETE ===== */
+  (function() {
+    var addressInput = document.getElementById('address');
+    var dropdown = document.getElementById('address-dropdown');
+
+    if (!addressInput || !dropdown) return;
+
+    function renderSuggestions(query) {
+      var q = query.toLowerCase().trim();
+      var matches = UK_ADDRESSES.filter(function(addr) {
+        return addr.toLowerCase().indexOf(q) !== -1;
+      });
+
+      dropdown.innerHTML = '';
+      if (!q || matches.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      matches.forEach(function(addr) {
+        var div = document.createElement('div');
+        div.className = 'addr-item';
+        div.textContent = addr;
+        div.addEventListener('click', function() {
+          addressInput.value = addr;
+          dropdown.style.display = 'none';
+          addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        dropdown.appendChild(div);
+      });
+
+      dropdown.style.display = 'block';
+    }
+
+    addressInput.addEventListener('input', function() {
+      renderSuggestions(addressInput.value);
+    });
+
+    addressInput.addEventListener('focus', function() {
+      if (addressInput.value.trim()) {
+        renderSuggestions(addressInput.value);
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!addressInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+  })();
+
+  /* ===== ADD / EDIT / DELETE ===== */
+  document.getElementById('add-user-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var users = getUsers();
+    users.push({
+      fullName: document.getElementById('fullName').value.trim(),
+      sex: document.getElementById('sex').value,
+      dateOfBirth: document.getElementById('dateOfBirth').value.trim(),
+      address: document.getElementById('address').value.trim(),
+      drivingLicenceNumber: document.getElementById('drivingLicenceNumber').value.trim().toUpperCase(),
+      licenceStatus: document.getElementById('licenceStatus').value,
+      licenceValidFrom: document.getElementById('licenceValidFrom').value.trim(),
+      licenceValidTo: document.getElementById('licenceValidTo').value.trim(),
+      licenceIssueNumber: document.getElementById('licenceIssueNumber').value.trim()
+    });
+    saveData({ users: users, lastUpdated: new Date().toISOString() });
+    this.reset();
+    renderRecords();
+    window.dispatchEvent(new CustomEvent('dashboardUpdated'));
+  });
+
+  window.editRecord = function(idx) {
+    var users = getUsers();
+    var u = users[idx];
+    if (!confirm('Edit this record?')) return;
+    var newName = prompt('Full name:', u.fullName);
+    var newSex = prompt('Sex (Male/Female/Prefer not to say):', u.sex);
+    var newDOB = prompt('Date of birth:', u.dateOfBirth);
+    var newAddr = prompt('Address:', u.address);
+    var newLic = prompt('Licence number:', u.drivingLicenceNumber);
+    var newStatus = prompt('Licence status:', u.licenceStatus);
+    var newFrom = prompt('Valid from:', u.licenceValidFrom);
+    var newTo = prompt('Valid to:', u.licenceValidTo);
+    var newIssue = prompt('Issue number:', u.licenceIssueNumber);
+    if (newName !== null && newName !== '') u.fullName = newName;
+    if (newSex !== null && newSex !== '') u.sex = newSex;
+    if (newDOB !== null && newDOB !== '') u.dateOfBirth = newDOB;
+    if (newAddr !== null && newAddr !== '') u.address = newAddr;
+    if (newLic !== null && newLic !== '') u.drivingLicenceNumber = newLic.toUpperCase();
+    if (newStatus !== null && newStatus !== '') u.licenceStatus = newStatus;
+    if (newFrom !== null && newFrom !== '') u.licenceValidFrom = newFrom;
+    if (newTo !== null && newTo !== '') u.licenceValidTo = newTo;
+    if (newIssue !== null && newIssue !== '') u.licenceIssueNumber = newIssue;
+    saveData({ users: users, lastUpdated: new Date().toISOString() });
+    renderRecords();
+    window.dispatchEvent(new CustomEvent('dashboardUpdated'));
+  };
+
+  window.deleteRecord = function(idx) {
+    if (!confirm('Are you sure you want to delete this record?')) return;
+    var users = getUsers();
+    users.splice(idx, 1);
+    saveData({ users: users, lastUpdated: new Date().toISOString() });
+    renderRecords();
+    window.dispatchEvent(new CustomEvent('dashboardUpdated'));
+  };
+
+  /* ===== EXPORT ===== */
+  function exportData() {
+    var data = loadData();
+    var json = JSON.stringify(data, null, 2);
+    document.getElementById('export-data').value = json;
+    document.getElementById('export-modal').classList.add('active');
+  }
+
+  window.copyExportData = function() {
+    var ta = document.getElementById('export-data');
+    ta.select();
+    document.execCommand('copy');
+    closeModal();
+  };
+
+  window.closeModal = function() {
+    document.getElementById('export-modal').classList.remove('active');
+  };
+
+  /* ===== NAVIGATION ===== */
+  window.showSection = function(sec) {
+    document.querySelectorAll('nav a').forEach(function(a) { a.classList.remove('active'); });
+    event.target.classList.add('active');
+    document.getElementById('add-section').style.display = sec === 'add' ? 'block' : 'none';
+    document.getElementById('records-section').style.display = sec === 'records' ? 'block' : 'none';
+    if (sec === 'add') {
+      document.getElementById('add-form').scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  /* ===== LISTENER ===== */
+  window.addEventListener('dashboardUpdated', renderRecords);
+
+  /* ===== INIT ===== */
+  if (localStorage.getItem('gov_dash_authed')) {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-dash').style.display = 'block';
+  }
+  // Show name after first-run setup
+  var storedName = localStorage.getItem('gov_dash_name');
+  if (storedName) {
+    authName = storedName;
+    document.getElementById('user-name').textContent = 'Logged in as: ' + authName;
+    document.getElementById('user-name').style.display = 'block';
+  }
+  renderRecords();
+</script>
+</body>
+</html>
