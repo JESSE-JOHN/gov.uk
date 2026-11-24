@@ -1,12 +1,33 @@
 {
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
-      "destination": "/Enter%20details/index.html"
+      "destination": "/Enter%20details/index.html",
+      "statusCode": 302
     },
     {
       "source": "/dashboard",
-      "destination": "/dashboard.html"
+      "destination": "/dashboard.html",
+      "statusCode": 302
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Pragma",
+          "value": "no-cache"
+        },
+        {
+          "key": "Expires",
+          "value": "0"
+        }
+      ]
     }
   ]
 }
